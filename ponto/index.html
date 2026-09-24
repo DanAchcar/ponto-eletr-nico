@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Ponto Eletrônico</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f4f6f9; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .clock-card { background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); color: white; }
+        .clock-display { font-size: 2.8rem; font-weight: 700; letter-spacing: 2px; }
+        .date-display { font-size: 1.1rem; opacity: 0.9; }
+        .btn-ponto { padding: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; transition: all 0.3s ease; }
+        .btn-ponto:hover { transform: translateY(-2px); box-shadow: 0 4px 10px rgba(0,0,0,0.15); }
+        .badge-entrada { background-color: #198754; }
+        .badge-intervalo_inicio { background-color: #ffc107; color: #000; }
+        .badge-intervalo_fim { background-color: #0dcaf0; color: #000; }
+        .badge-saida { background-color: #dc3545; }
+    </style>
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4 shadow-sm">
+    <div class="container">
+        <a class="navbar-brand font-weight-bold" href="#"><i class="fa-solid fa-clock me-2"></i> Ponto Eletrônico PHP/MySQL</a>
+    </div>
+</nav>
+
+<div class="container pb-5">
+    <div class="row g-4">
+        <!-- Coluna Esquerda: Relógio e Registro -->
+        <div class="col-lg-5">
+            <div class="card shadow-sm clock-card mb-4">
+                <div class="card-body text-center py-4">
+                    <i class="fa-solid fa-business-time fa-3x mb-2 text-warning"></i>
+                    <div id="relogio" class="clock-display">00:00:00</div>
+                    <div id="data" class="date-display">--/--/----</div>
+                </div>
+            </div>
+
+            <div class="card shadow-sm">
+                <div class="card-header bg-white font-weight-bold">
+                    <i class="fa-solid fa-fingerprint me-2 text-primary"></i>Registrar Ponto
+                </div>
+                <div class="card-body">
+                    <form id="formPonto">
+                        <div class="mb-3">
+                            <label class="form-label font-weight-bold">Nome do Funcionário</label>
+                            <input type="text" id="funcionario_nome" name="funcionario_nome" class="form-control" value="João Silva" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Observação (opcional)</label>
+                            <input type="text" id="observacao" name="observacao" class="form-control" placeholder="Ex: Saída médica, atraso...">
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="button" class="btn btn-success btn-ponto" onclick="registrar('entrada')">
+                                <i class="fa-solid fa-right-to-bracket me-2"></i> Registrar Entrada
+                            </button>
+                            <div class="row g-2">
+                                <div class="col-6">
+                                    <button type="button" class="btn btn-warning btn-ponto w-100" onclick="registrar('intervalo_inicio')">
+                                        <i class="fa-solid fa-utensils me-1"></i> Ir Intervalo
+                                    </button>
+                                </div>
+                                <div class="col-6">
+                                    <button type="button" class="btn btn-info text-white btn-ponto w-100" onclick="registrar('intervalo_fim')">
+                                        <i class="fa-solid fa-rotate-left me-1"></i> Voltar
+                                    </button>
+                                </div>
+                            </div>
+                            <button type="button" class="btn btn-danger btn-ponto" onclick="registrar('saida')">
+                                <i class="fa-solid fa-right-from-bracket me-2"></i> Registrar Saída
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Coluna Direita: Resumo do Dia e Histórico -->
+        <div class="col-lg-7">
+            <!-- Summary Card -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-white font-weight-bold">
+                    <i class="fa-solid fa-calculator me-2 text-info"></i>Resumo do Dia (Cálculo de Horas)
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-4 border-end">
+                            <small class="text-muted d-block">Horas Trabalhadas</small>
+                            <span id="horasTrabalhadas" class="fs-4 fw-bold text-dark">00h 00m</span>
+                        </div>
+                        <div class="col-4 border-end">
+                            <small class="text-muted d-block">Intervalo</small>
+                            <span id="horasIntervalo" class="fs-4 fw-bold text-secondary">00h 00m</span>
+                        </div>
+                        <div class="col-4">
+                            <small class="text-muted d-block">Saldo (Meta: 8h)</small>
+                            <span id="saldoHoras" class="fs-4 fw-bold text-muted">00h 00m</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Table Card -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <span class="fw-bold"><i class="fa-solid fa-list me-2 text-secondary"></i> Histórico de Registros</span>
+                    <button class="btn btn-sm btn-outline-primary" onclick="carregarRegistros()">
+                        <i class="fa-solid fa-rotate-right me-1"></i> Atualizar
+                    </button>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Funcionário</th>
+                                    <th>Tipo</th>
+                                    <th>Data & Hora</th>
+                                    <th>Observação</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabelaRegistros">
+                                <tr>
+                                    <td colspan="4" class="text-center py-4 text-muted">Carregando registros...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    // Relógio Digital
+    function atualizarRelogio() {
+        const agora = new Date();
+        document.getElementById('relogio').innerText = agora.toLocaleTimeString('pt-BR');
+        document.getElementById('data').innerText = agora.toLocaleDateString('pt-BR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    }
+    setInterval(atualizarRelogio, 1000);
+    atualizarRelogio();
+
+    // Mapeamento de tipos para badges visualmente agradáveis
+    const tipoLabels = {
+        'entrada': { text: 'Entrada', badge: 'badge-entrada' },
+        'intervalo_inicio': { text: 'Início Intervalo', badge: 'badge-intervalo_inicio' },
+        'intervalo_fim': { text: 'Fim Intervalo', badge: 'badge-intervalo_fim' },
+        'saida': { text: 'Saída', badge: 'badge-saida' }
+    };
+
+    // Registrar Ponto via AJAX (fetch)
+    async function registrar(tipo) {
+        const nome = document.getElementById('funcionario_nome').value;
+        const observacao = document.getElementById('observacao').value;
+
+        if (!nome.trim()) {
+            alert('Por favor, informe o nome do funcionário.');
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('funcionario_nome', nome);
+        formData.append('tipo', tipo);
+        formData.append('observacao', observacao);
+
+        try {
+            const response = await fetch('registrar.php', {
+                method: 'POST',
+                body: formData
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                document.getElementById('observacao').value = '';
+                carregarRegistros();
+            } else {
+                alert('Erro: ' + result.message);
+            }
+        } catch (error) {
+            console.error('Erro ao registrar:', error);
+            alert('Erro de comunicação com o servidor PHP.');
+        }
+    }
+
+    // Carregar Registros e Calcular Horas
+    async function carregarRegistros() {
+        try {
+            const response = await fetch('listar.php');
+            const result = await response.json();
+
+            if (result.success) {
+                renderTabela(result.data);
+                calcularHoras(result.data);
+            } else {
+                console.error(result.message);
+            }
+        } catch (error) {
+            console.error('Erro ao buscar registros:', error);
+        }
+    }
+
+    function renderTabela(registros) {
+        const tbody = document.getElementById('tabelaRegistros');
+        if (!registros || registros.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-muted">Nenhum registro encontrado.</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = registros.map(r => {
+            const info = tipoLabels[r.tipo] || { text: r.tipo, badge: 'bg-secondary' };
+            const dataFmt = new Date(r.data_hora).toLocaleString('pt-BR');
+            return `
+                <tr>
+                    <td class="fw-bold">${escapeHtml(r.funcionario_nome)}</td>
+                    <td><span class="badge ${info.badge}">${info.text}</span></td>
+                    <td>${dataFmt}</td>
+                    <td><small class="text-muted">${escapeHtml(r.observacao || '-')}</small></td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    function calcularHoras(registros) {
+        // Filtra os registros do dia de hoje para o cálculo
+        const hoje = new Date().toISOString().split('T')[0];
+        const doDia = registros.filter(r => r.data_hora.startsWith(hoje)).sort((a, b) => new Date(a.data_hora) - new Date(b.data_hora));
+
+        let entrada = null;
+        let intInicio = null;
+        let intFim = null;
+        let saida = null;
+
+        doDia.forEach(r => {
+            if (r.tipo === 'entrada' && !entrada) entrada = new Date(r.data_hora);
+            if (r.tipo === 'intervalo_inicio' && !intInicio) intInicio = new Date(r.data_hora);
+            if (r.tipo === 'intervalo_fim' && !intFim) intFim = new Date(r.data_hora);
+            if (r.tipo === 'saida') saida = new Date(r.data_hora);
+        });
+
+        let tempoTrabalhadoMs = 0;
+        let tempoIntervaloMs = 0;
+
+        if (intInicio && intFim) {
+            tempoIntervaloMs = intFim - intInicio;
+        }
+
+        if (entrada) {
+            const fimEfetivo = saida || new Date();
+            let totalMs = fimEfetivo - entrada;
+            tempoTrabalhadoMs = totalMs - tempoIntervaloMs;
+        }
+
+        const hrsTrab = Math.max(0, Math.floor(tempoTrabalhadoMs / (1000 * 60 * 60)));
+        const minsTrab = Math.max(0, Math.floor((tempoTrabalhadoMs % (1000 * 60 * 60)) / (1000 * 60)));
+
+        const hrsInt = Math.max(0, Math.floor(tempoIntervaloMs / (1000 * 60 * 60)));
+        const minsInt = Math.max(0, Math.floor((tempoIntervaloMs % (1000 * 60 * 60)) / (1000 * 60)));
+
+        document.getElementById('horasTrabalhadas').innerText = `${hrsTrab}h ${minsTrab.toString().padStart(2, '0')}m`;
+        document.getElementById('horasIntervalo').innerText = `${hrsInt}h ${minsInt.toString().padStart(2, '0')}m`;
+
+        // Saldo em relação à jornada de 8h (28800000 ms)
+        const metaMs = 8 * 60 * 60 * 1000;
+        const saldoMs = tempoTrabalhadoMs - metaMs;
+        const saldoElement = document.getElementById('saldoHoras');
+
+        const absSaldoMs = Math.abs(saldoMs);
+        const hrsSaldo = Math.floor(absSaldoMs / (1000 * 60 * 60));
+        const minsSaldo = Math.floor((absSaldoMs % (1000 * 60 * 60)) / (1000 * 60));
+
+        if (saldoMs >= 0) {
+            saldoElement.innerText = `+${hrsSaldo}h ${minsSaldo.toString().padStart(2, '0')}m`;
+            saldoElement.className = "fs-4 fw-bold text-success";
+        } else {
+            saldoElement.innerText = `-${hrsSaldo}h ${minsSaldo.toString().padStart(2, '0')}m`;
+            saldoElement.className = "fs-4 fw-bold text-danger";
+        }
+    }
+
+    function escapeHtml(text) {
+        if (!text) return '';
+        return text.replace(/[&<>"']/g, function(m) {
+            return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m];
+        });
+    }
+
+    // Carregar registros ao abrir a página
+    carregarRegistros();
+</script>
+</body>
+</html>
